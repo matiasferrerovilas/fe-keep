@@ -39,6 +39,8 @@ export default function FolderContentCard({
     handleActivate,
     dragDepth,
     dragHandlers,
+    touchHandlers,
+    isTouchDevice,
     renaming,
     setRenaming,
     previewing,
@@ -51,7 +53,7 @@ export default function FolderContentCard({
     setViewingActivity,
     isFavorite,
     handleToggleFavorite,
-  } = useFolderContentActions(node);
+  } = useFolderContentActions(node, { selectionActive, onToggleSelect });
   const folderIcon = getFolderIcon(node.metadata.folderIcon);
   const folderColor = node.metadata.folderColor;
 
@@ -152,12 +154,15 @@ export default function FolderContentCard({
             </span>
           </Tooltip>
         </div>
-        <Dropdown menu={{ items: menuItems, onClick: handleMenuClick }} trigger={["contextMenu"]}>
+        <Dropdown menu={{ items: menuItems, onClick: handleMenuClick }} trigger={isTouchDevice ? [] : ["contextMenu"]}>
           <Card
             hoverable
-            draggable
+            draggable={!isTouchDevice}
             {...dragHandlers}
+            {...touchHandlers}
             style={{
+              userSelect: isTouchDevice ? "none" : undefined,
+              WebkitTouchCallout: "none",
               width: 240,
               border:
                 dragDepth > 0

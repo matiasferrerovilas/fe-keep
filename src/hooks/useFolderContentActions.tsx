@@ -1,4 +1,4 @@
-import { useState, type DragEvent } from "react";
+import { useRef, useState, type DragEvent } from "react";
 import axios from "axios";
 import { App as AntdApp, type MenuProps } from "antd";
 import { useTranslation } from "react-i18next";
@@ -25,14 +25,20 @@ import { getFileTypeIcon } from "../utils/getFileTypeIcon";
 
 // "api-movements", con "s" — tiene que coincidir exacto con el nombre real de la app (así se
 // llama en Keycloak/AppFileShare), si no el share nunca matchea del lado de api-keep.
-const SHARE_TARGETS = [{ key: "api-movements", label: "api-movements" }];
+const LONG_PRESS_MS = 450;
+const isTouchDevice = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+
+const SHARE_TARGETS =[{ key: "api-movements", label: "api-movements" }];
 
 /**
  * Shared behavior behind both the grid card (FolderContentCard) and the list row
  * (FolderContentRow) so context-menu actions, drag&drop and delete/rename/preview stay in sync
  * between the two view modes instead of drifting apart.
  */
-export function useFolderContentActions(node: FileSystemNode) {
+export function useFolderContentActions(
+  node: FileSystemNode,
+  selection?: { selectionActive: boolean; onToggleSelect: (id: string) => void },
+) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { message, modal } = AntdApp.useApp();
@@ -147,7 +153,36 @@ export function useFolderContentActions(node: FileSystemNode) {
     }
   };
 
+  // Touch: a long press selects (and replaces the context menu, which would otherwise open on the
+  // same gesture); drag&drop is disabled because the browser turns a long press into a drag.
+  const longPressTimer = useRef<number>(undefined);
+  const longPressed = useRef(false);
+  const cancelLongPress = () => window.clearTimeout(longPressTimer.current);
+  const touchHandlers = isTouchDevice
+    ? {
+        onTouchStart: () => {
+          longPressed.current = false;
+          longPressTimer.current = window.setTimeout(() => {
+            longPressed.current = true;
+            navigator.vibrate?.(10);
+            selection?.onToggleSelect(node.id);
+          }, LONG_PRESS_MS);
+        },
+        onTouchMove: cancelLongPress,
+        onTouchEnd: cancelLongPress,
+        onTouchCancel: cancelLongPress,
+      }
+    : {};
+
   const handleActivate = () => {
+    if (longPressed.current) {
+      longPressed.current = false;
+      return;
+    }
+    if (selection?.selectionActive) {
+      selection.onToggleSelect(node.id);
+      return;
+    }
     if (isFolder) {
       navigate({ to: "/files/$folderId", params: { folderId: node.id } });
     } else if (previewable) {
@@ -192,6 +227,8 @@ export function useFolderContentActions(node: FileSystemNode) {
     handleActivate,
     dragDepth,
     dragHandlers,
+    touchHandlers,
+    isTouchDevice,
     renaming,
     setRenaming,
     previewing,

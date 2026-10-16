@@ -41,6 +41,8 @@ export default function FolderContentRow({
     handleActivate,
     dragDepth,
     dragHandlers,
+    touchHandlers,
+    isTouchDevice,
     renaming,
     setRenaming,
     previewing,
@@ -53,7 +55,7 @@ export default function FolderContentRow({
     setViewingActivity,
     isFavorite,
     handleToggleFavorite,
-  } = useFolderContentActions(node);
+  } = useFolderContentActions(node, { selectionActive, onToggleSelect });
   const folderIcon = getFolderIcon(node.metadata.folderIcon);
   const folderColor = node.metadata.folderColor;
 
@@ -65,18 +67,21 @@ export default function FolderContentRow({
 
   return (
     <>
-      <Dropdown menu={{ items: menuItems, onClick: handleMenuClick }} trigger={["contextMenu"]}>
+      <Dropdown menu={{ items: menuItems, onClick: handleMenuClick }} trigger={isTouchDevice ? [] : ["contextMenu"]}>
         <Flex
           align="center"
           gap={12}
-          draggable
+          draggable={!isTouchDevice}
           {...dragHandlers}
+          {...touchHandlers}
           onContextMenu={(e) => e.stopPropagation()}
           onMouseEnter={() => setHovering(true)}
           onMouseLeave={() => setHovering(false)}
           onClick={handleActivate}
           className="fade-in-up"
           style={{
+            userSelect: isTouchDevice ? "none" : undefined,
+            WebkitTouchCallout: "none",
             padding: "8px 12px",
             borderRadius: token.borderRadius,
             border: dragDepth > 0 ? `1px dashed ${token.colorPrimary}` : "1px solid transparent",

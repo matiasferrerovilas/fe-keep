@@ -1,4 +1,6 @@
-import { Modal, Spin, Typography } from "antd";
+import { App as AntdApp, Button, Modal, Spin, Typography } from "antd";
+import DownloadOutlined from "@ant-design/icons/DownloadOutlined";
+import { useDownloadFile } from "../../hooks/useDownloadFile";
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import type { FileSystemNode } from "../../models/FileSystemNode";
@@ -21,12 +23,31 @@ export default function FilePreviewModal({ node, onClose }: FilePreviewModalProp
   const isPlainText = node !== null && !isMarkdown && isPlainTextFile(node.name, contentType);
   const isText = isMarkdown || isPlainText;
   const { url, text, loading, error } = useFilePreview(node?.id ?? null, { asText: isText });
+  const { message } = AntdApp.useApp();
+  const downloadMutation = useDownloadFile();
 
   return (
     <Modal
       open={node !== null}
       onCancel={onClose}
-      footer={null}
+      footer={
+        node && (
+          // Mobile browsers can't render PDFs in an iframe (they show a bare "Open" link), so the
+          // download action has to live outside the embedded viewer.
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            loading={downloadMutation.isPending}
+            onClick={() =>
+              downloadMutation.mutate(node.id, {
+                onError: () => message.error(t("files.downloadFailed", { name: node.name })),
+              })
+            }
+          >
+            {t("files.download")}
+          </Button>
+        )
+      }
       title={node?.name}
       width={isPdf || isText ? 860 : 720}
       centered
